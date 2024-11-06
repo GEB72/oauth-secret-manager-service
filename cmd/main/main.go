@@ -4,7 +4,6 @@ import (
 	"app/internal/rest"
 	"app/internal/secret"
 	"app/internal/token"
-	"app/internal/user"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"log/slog"
@@ -35,7 +34,7 @@ func NewRouter(tm token.Manager) *gin.Engine {
 	// Create router
 	router := gin.New()
 	router.Use(gin.Recovery())
-	router.Use(user.Authenticate(user.NewJWTParser()))
+	router.Use(rest.Authenticate(rest.NewJWTParser()))
 
 	// Define routes
 	router.PUT("/token/save", rest.SaveTokenHandler(tm))

@@ -1,8 +1,7 @@
-package user
+package rest
 
 import (
 	"bytes"
-	"encoding/json"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"net/http"
@@ -165,13 +164,4 @@ func TestJWTParser_Parse(t *testing.T) {
 			}
 		})
 	}
-}
-
-func getValueFromResponse(t *testing.T, body *bytes.Buffer, key string) any {
-	var responseBody gin.H
-	if err := json.Unmarshal(body.Bytes(), &responseBody); err != nil {
-		t.Fatalf("Failed to decode response body: %v", err)
-	}
-
-	return responseBody[key]
 }
