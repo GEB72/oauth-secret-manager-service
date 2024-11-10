@@ -1,7 +1,10 @@
 package rest
 
 import (
+	"app/internal/aws/key"
 	"crypto"
+	"crypto/rsa"
+	"encoding/pem"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
@@ -43,23 +46,23 @@ func Authenticate(p Parser) gin.HandlerFunc {
 			return
 		}
 
-		token, err := p.Parse(tokenString)
+		token, err := p.ParseJWT(tokenString)
 		if err != nil || !token.Valid {
 			slog.Error(fmt.Sprintf("Invalid token or parsing error: %s", err))
-			c.AbortWithStatusJSON(http.StatusBadRequest, errorBody)
+			c.AbortWithStatusJSON(http.StatusUnauthorized, errorBody)
 			return
 		}
 
 		claims, ok := token.Claims.(jwt.MapClaims)
 		if !ok {
 			slog.Error("Could not extract userID from token")
-			c.AbortWithStatusJSON(http.StatusBadRequest, errorBody)
+			c.AbortWithStatusJSON(http.StatusUnauthorized, errorBody)
 			return
 		}
 
 		if req.UserID != claims["sub"] {
 			slog.Error("Invalid userID")
-			c.AbortWithStatusJSON(http.StatusBadRequest, errorBody)
+			c.AbortWithStatusJSON(http.StatusUnauthorized, errorBody)
 			return
 		}
 
@@ -67,25 +70,44 @@ func Authenticate(p Parser) gin.HandlerFunc {
 	}
 }
 
-type (
-	Parser interface {
-		Parse(tokenString string) (*jwt.Token, error)
-	}
-
-	JWTParser struct {
-		signingMethod jwt.SigningMethod
-		secretKey     []byte
-	}
-)
-
-func NewJWTParser() *JWTParser {
-	return &JWTParser{
-		signingMethod: &jwt.SigningMethodHMAC{Name: "HS256", Hash: crypto.SHA256},
-		secretKey:     []byte("your-secret-key"),
-	}
+// Parser is an interface that defines the Parse method, which will parse a token
+// string and return a jwt.Token or an error. It is used as a wrapper around the
+// jwt.Parse method to allow for easier testing and stubbing.
+type Parser interface {
+	ParseJWT(tokenString string) (*jwt.Token, error)
 }
 
-func (j *JWTParser) Parse(tokenString string) (*jwt.Token, error) {
+// JWTParser is an implementation of the Parser interface. It contains the public key
+// and signing method for the JWT token. It is used to parse and validate the token
+// before authenticating the user.
+type JWTParser struct {
+	signingMethod jwt.SigningMethod
+	pubKey        *rsa.PublicKey
+}
+
+func NewJWTParser(km key.Manager) (*JWTParser, error) {
+	pubKeyBytes, err := km.GetPublicKey()
+	if err != nil {
+		return nil, err
+	}
+
+	pemBytes := pem.EncodeToMemory(&pem.Block{
+		Type:  "PUBLIC KEY",
+		Bytes: pubKeyBytes,
+	})
+
+	pubKey, err := jwt.ParseRSAPublicKeyFromPEM(pemBytes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse public key: %w", err)
+	}
+
+	return &JWTParser{
+		signingMethod: &jwt.SigningMethodRSA{Name: "RS256", Hash: crypto.SHA256},
+		pubKey:        pubKey,
+	}, nil
+}
+
+func (j *JWTParser) ParseJWT(tokenString string) (*jwt.Token, error) {
 	validateSigningMethod := func(token *jwt.Token) (interface{}, error) {
 		if !reflect.DeepEqual(token.Method, j.signingMethod) {
 			err := fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
@@ -93,7 +115,7 @@ func (j *JWTParser) Parse(tokenString string) (*jwt.Token, error) {
 			return nil, err
 		}
 
-		return []byte("your-secret-key"), nil
+		return j.pubKey, nil
 	}
 	return jwt.Parse(tokenString, validateSigningMethod)
 }

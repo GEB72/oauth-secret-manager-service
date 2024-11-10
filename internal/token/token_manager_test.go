@@ -1,7 +1,7 @@
 package token
 
 import (
-	"app/internal/secret"
+	"app/internal/aws/secret"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager/types"
 	"golang.org/x/oauth2"
 	"testing"
@@ -102,7 +102,7 @@ func TestOAuthManager_Retrieve(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			manager := NewOAuthManager(tt.stub)
 
-			res, err := manager.RetrieveToken(tt.request)
+			res, err := manager.RetrieveToken(&tt.request)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Retrieve() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -209,7 +209,7 @@ func TestOAuthManager_Save(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			manager := NewOAuthManager(tt.stub)
 
-			err := manager.SaveToken(tt.request)
+			err := manager.SaveToken(&tt.request)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Save() error = %v, wantErr %v", err, tt.wantErr)
 			}

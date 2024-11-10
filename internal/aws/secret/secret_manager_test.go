@@ -55,12 +55,12 @@ func TestAWSManager_GetSecret(t *testing.T) {
 						ctx context.Context,
 						input *sm.GetSecretValueInput,
 						opts ...func(*sm.Options)) (*sm.GetSecretValueOutput, error) {
-						return &sm.GetSecretValueOutput{SecretString: aws.String("secretValue")}, nil
+						return &sm.GetSecretValueOutput{SecretString: aws.String("SecretValue")}, nil
 					},
 				}
 			},
-			request: GetRequest{SecretID: "secretID"},
-			want:    "secretValue",
+			request: GetRequest{"root-domain/domain/userID"},
+			want:    "SecretValue",
 			wantErr: false,
 		},
 		{
@@ -75,7 +75,7 @@ func TestAWSManager_GetSecret(t *testing.T) {
 					},
 				}
 			},
-			request: GetRequest{SecretID: "secretID"},
+			request: GetRequest{"root-domain/domain/userID"},
 			want:    "",
 			wantErr: true,
 		},
@@ -115,7 +115,7 @@ func TestAWSManager_PutSecret(t *testing.T) {
 					},
 				}
 			},
-			request: PutRequest{"secretID", "token"},
+			request: PutRequest{SecretID: "root-domain/domain/userID", Token: "Token"},
 			wantErr: false,
 		},
 		{
@@ -130,7 +130,7 @@ func TestAWSManager_PutSecret(t *testing.T) {
 					},
 				}
 			},
-			request: PutRequest{SecretID: "secretID", Token: "token"},
+			request: PutRequest{SecretID: "root-domain/domain/userID", Token: "Token"},
 			wantErr: true,
 		},
 	}
@@ -166,7 +166,7 @@ func TestAWSManager_CreateSecret(t *testing.T) {
 					},
 				}
 			},
-			request: PutRequest{SecretID: "secretID", Token: "token"},
+			request: PutRequest{SecretID: "root-domain/domain/userID", Token: "token"},
 			wantErr: false,
 		},
 		{
@@ -181,7 +181,7 @@ func TestAWSManager_CreateSecret(t *testing.T) {
 					},
 				}
 			},
-			request: PutRequest{SecretID: "secretID", Token: "token"},
+			request: PutRequest{SecretID: "root-domain/domain/userID", Token: "token"},
 			wantErr: true,
 		},
 	}
@@ -218,8 +218,8 @@ func TestAWSManager_ResolveID(t *testing.T) {
 					},
 				}
 			},
-			request: ResolveIDRequest{UserID: "userID"},
-			want:    "stackedtracker-oauth/userID",
+			request: ResolveIDRequest{Domain: "domain", UserID: "userID"},
+			want:    "root-domain/domain/userID",
 			wantErr: false,
 		},
 		{
@@ -234,22 +234,22 @@ func TestAWSManager_ResolveID(t *testing.T) {
 					},
 				}
 			},
-			request: ResolveIDRequest{UserID: "userID"},
-			want:    "",
+			request: ResolveIDRequest{Domain: "domain", UserID: "userID"},
+			want:    "root-domain/domain/userID",
 			wantErr: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			manager := AWSManager{client: tt.stub()}
+			manager := AWSManager{client: tt.stub(), rootDomain: "root-domain"}
 
 			res, err := manager.ResolveSecretID(&tt.request)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ResolveSecretID() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if res != tt.want {
-				t.Errorf("ResolveSecretID() = %v, want %v", res, tt.want)
+				t.Errorf("ResolveSecretID() = %v, want = %v", res, tt.want)
 			}
 		})
 	}

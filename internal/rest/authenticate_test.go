@@ -2,6 +2,9 @@ package rest
 
 import (
 	"bytes"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"net/http"
@@ -13,7 +16,7 @@ type ParserStub struct {
 	ParserFunc func(tokenString string) (*jwt.Token, error)
 }
 
-func (p *ParserStub) Parse(value string) (*jwt.Token, error) {
+func (p *ParserStub) ParseJWT(value string) (*jwt.Token, error) {
 	return p.ParserFunc(value)
 }
 
@@ -48,14 +51,14 @@ func TestAuthenticate(t *testing.T) {
 			name:        "AuthenticateEmptyAuthorizationHeader",
 			authHeader:  "",
 			requestBody: `{"user_id": "userID"}`,
-			wantStatus:  http.StatusUnauthorized,
+			wantStatus:  http.StatusBadRequest,
 			wantBody:    gin.H{"Error": "Could not authenticate user"},
 		},
 		{
 			name:        "AuthenticateInvalidAuthorizationHeader",
 			authHeader:  "InvalidFormat",
 			requestBody: `{"user_id": "userID"}`,
-			wantStatus:  http.StatusUnauthorized,
+			wantStatus:  http.StatusBadRequest,
 			wantBody:    gin.H{"Error": "Could not authenticate user"},
 		},
 		{
@@ -120,48 +123,66 @@ func TestAuthenticate(t *testing.T) {
 	}
 }
 
+type KeyManagerStub struct {
+	KeyFunc func() ([]byte, error)
+}
+
+func (k *KeyManagerStub) GetPublicKey() ([]byte, error) {
+	return k.KeyFunc()
+}
+
 func TestJWTParser_Parse(t *testing.T) {
+	privateKey, _ := rsa.GenerateKey(rand.Reader, 2048)
+	otherPrivateKey, _ := rsa.GenerateKey(rand.Reader, 2048)
+
 	tests := []struct {
-		name          string
-		signingMethod jwt.SigningMethod
-		secretKey     []byte
-		tokenString   string
-		wantErr       bool
+		name        string
+		stub        *KeyManagerStub
+		tokenString string
+		wantErr     bool
 	}{
 		{
-			name:          "ParseSuccess",
-			signingMethod: jwt.SigningMethodHS256,
-			secretKey:     []byte("your-secret-key"),
-			tokenString:   "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.hZXAt4uakIsbrWavNREXoiEAnd4oUkCGS2OrzUPocXw",
-			wantErr:       false,
+			name: "ParseSuccess",
+			stub: &KeyManagerStub{KeyFunc: func() ([]byte, error) {
+				return x509.MarshalPKIXPublicKey(&privateKey.PublicKey)
+			}},
+			tokenString: generateTestToken(privateKey),
+			wantErr:     false,
 		},
 		{
-			name:          "ParseInvalidSigningMethod",
-			signingMethod: jwt.SigningMethodES256,
-			secretKey:     []byte("your-secret-key"),
-			tokenString:   "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.hZXAt4uakIsbrWavNREXoiEAnd4oUkCGS2OrzUPocXw",
-			wantErr:       true,
+			name: "ParseWrongPublicKey",
+			stub: &KeyManagerStub{KeyFunc: func() ([]byte, error) {
+				return x509.MarshalPKIXPublicKey(&otherPrivateKey.PublicKey)
+			}},
+			tokenString: generateTestToken(privateKey),
+			wantErr:     true,
 		},
 		{
-			name:          "ParseInvalidSecretKey",
-			signingMethod: jwt.SigningMethodES256,
-			secretKey:     []byte("wrong-secret-key"),
-			tokenString:   "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.hZXAt4uakIsbrWavNREXoiEAnd4oUkCGS2OrzUPocXw",
-			wantErr:       true,
+			name: "ParseWrongPrivateKey",
+			stub: &KeyManagerStub{KeyFunc: func() ([]byte, error) {
+				return x509.MarshalPKIXPublicKey(&privateKey.PublicKey)
+			}},
+			tokenString: generateTestToken(otherPrivateKey),
+			wantErr:     true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			parser := &JWTParser{
-				signingMethod: tt.signingMethod,
-				secretKey:     tt.secretKey,
-			}
+			parser, err := NewJWTParser(tt.stub)
 
-			_, err := parser.Parse(tt.tokenString)
+			_, err = parser.ParseJWT(tt.tokenString)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("Parse() error = %v, wantErr = %v", err, tt.wantErr)
+				t.Errorf("ParseJWT() error = %v, wantErr = %v", err, tt.wantErr)
 			}
 		})
 	}
+}
+
+func generateTestToken(privateKey *rsa.PrivateKey) string {
+	claims := jwt.MapClaims{"sub": "1"}
+	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+	tokenString, _ := token.SignedString(privateKey)
+
+	return tokenString
 }

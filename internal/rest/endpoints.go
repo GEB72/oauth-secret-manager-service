@@ -24,7 +24,7 @@ func RetrieveTokenHandler(r token.Retriever) gin.HandlerFunc {
 			return
 		}
 
-		token, err := r.RetrieveToken(token.RetrieveRequest{UserID: req.UserID})
+		token, err := r.RetrieveToken(&token.RetrieveRequest{UserID: req.UserID})
 		if err != nil || token == nil || token.AccessToken == "" {
 			c.JSON(http.StatusInternalServerError, errorBody)
 			return
@@ -52,7 +52,7 @@ func SaveTokenHandler(s token.Saver) gin.HandlerFunc {
 			return
 		}
 
-		err := s.SaveToken(token.SaveRequest{
+		err := s.SaveToken(&token.SaveRequest{
 			UserID:       req.UserID,
 			AccessToken:  req.AccessToken,
 			RefreshToken: req.RefreshToken,
