@@ -9,7 +9,6 @@ The OAuth Secret Manager Service is a Go-based application designed for secure m
 * Secure storage and retrieval of secrets using AWS Secrets Manager.
 * Encryption and decryption of keys using AWS KMS.
 * JWT-based authentication middleware for added security.
-* Dynamic resolution of secrets based on root domain, user ID, and domain using `SMS_ROOT_DOMAIN`.
 
 ## Prerequisites
 
@@ -42,9 +41,9 @@ Set up the necessary environment variables:
 ```bash
 export AWS_ACCESS_KEY_ID=your-access-key-id
 export AWS_SECRET_ACCESS_KEY=your-secret-access-key
+export SMS_ROOT_DOMAIN=your-root-domain
 export KMS_KEY_ID=your-kms-key-id
 export REGION=your-aws-region
-export SMS_ROOT_DOMAIN=your-root-domain
 ```
 
 * **`AWS_ACCESS_KEY_ID`** and **`AWS_SECRET_ACCESS_KEY`**: AWS credentials with appropriate permissions.
