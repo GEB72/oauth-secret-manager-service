@@ -151,6 +151,7 @@ The service utilizes **JSON Web Tokens (JWT)** and **JSON Web Key (JWK)** for se
     - **Claims**: Check claims like `sub` (subject) and `exp` (expiration) to ensure the token is valid and has not expired.
 - **Use HTTPS**: All communication with the service should be done over HTTPS to prevent token interception.
 
+
 ### Enabling HTTPS with a Reverse Proxy
 
 To enhance security, you can set up a **reverse proxy** (e.g., Nginx or AWS Application Load Balancer) in front of your service to handle HTTPS. The reverse proxy will:
