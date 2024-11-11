@@ -151,6 +151,51 @@ The service utilizes **JSON Web Tokens (JWT)** and **JSON Web Key (JWK)** for se
     - **Claims**: Check claims like `sub` (subject) and `exp` (expiration) to ensure the token is valid and has not expired.
 - **Use HTTPS**: All communication with the service should be done over HTTPS to prevent token interception.
 
+### Enabling HTTPS with a Reverse Proxy
+
+To enhance security, you can set up a **reverse proxy** (e.g., Nginx or AWS Application Load Balancer) in front of your service to handle HTTPS. The reverse proxy will:
+1. Terminate SSL/TLS connections and handle HTTPS traffic.
+2. Forward requests to your service over HTTP.
+3. Redirect all HTTP traffic to HTTPS, ensuring secure communication.
+
+#### Example Nginx Configuration
+
+```nginx
+server {
+    listen 80;
+    server_name your-domain.com;
+
+    # Redirect HTTP to HTTPS
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl;
+    server_name your-domain.com;
+
+    # SSL Configuration
+    ssl_certificate /etc/nginx/self-signed.crt;  # Path to your SSL cert
+    ssl_certificate_key /etc/nginx/self-signed.key;  # Path to your SSL key
+
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+
+    location / {
+        proxy_pass http://localhost:8080;  # Forward requests to localhost
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+This configuration will:
+- Redirect all HTTP traffic to HTTPS.
+- Forward HTTPS requests to your service running on `localhost:8080`.
+
 ### Available Endpoints
 
 * **`/token/get`**: Retrieves a token for a given user.
