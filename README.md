@@ -119,7 +119,7 @@ The service utilizes **JSON Web Tokens (JWT)** and **JSON Web Key (JWK)** for se
 
 **Expected Request Format**
 - **For `/token/get` Endpoint**:
-    - Method: **POST**
+    - Method: **GET**
     - Headers:
         - `Authorization`: Bearer token containing the JWT.
     - Body (JSON):
@@ -130,7 +130,7 @@ The service utilizes **JSON Web Tokens (JWT)** and **JSON Web Key (JWK)** for se
       ```
 
 - **For `/token/save` Endpoint**:
-    - Method: **POST**
+    - Method: **PUT**
     - Headers:
         - `Authorization`: Bearer token containing the JWT.
     - Body (JSON):
