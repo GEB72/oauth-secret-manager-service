@@ -1,7 +1,7 @@
 package rest
 
 import (
-	"app/internal/aws/key"
+	"app/internal/key"
 	"crypto"
 	"crypto/rsa"
 	"encoding/pem"
@@ -85,7 +85,7 @@ type JWTParser struct {
 	pubKey        *rsa.PublicKey
 }
 
-func NewJWTParser(km key.Manager) (*JWTParser, error) {
+func NewJWTParser(km key.Getter) (*JWTParser, error) {
 	pubKeyBytes, err := km.GetPublicKey()
 	if err != nil {
 		return nil, err

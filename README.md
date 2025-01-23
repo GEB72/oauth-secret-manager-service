@@ -208,6 +208,6 @@ Refer to the API documentation for detailed information on all available endpoin
 Unit tests are available for core functionality. Run tests using:
 
 ```bash
-go test ./...
+go test ./internal/...
 ```
 

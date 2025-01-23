@@ -1,6 +1,7 @@
 package secret
 
 import (
+	"app/api"
 	"context"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	sm "github.com/aws/aws-sdk-go-v2/service/secretsmanager"
@@ -42,40 +43,34 @@ func (s *AWSClientStub) DescribeSecret(ctx context.Context, input *sm.DescribeSe
 func TestAWSManager_GetSecret(t *testing.T) {
 	tests := []struct {
 		name    string
-		stub    func() *AWSClientStub
-		request GetRequest
+		stub    *AWSClientStub
+		request api.GetSecretRequest
 		want    string
 		wantErr bool
 	}{
 		{
 			name: "GetExistingSecret",
-			stub: func() *AWSClientStub {
-				return &AWSClientStub{
-					GetSecretValueFunc: func(
-						ctx context.Context,
-						input *sm.GetSecretValueInput,
-						opts ...func(*sm.Options)) (*sm.GetSecretValueOutput, error) {
-						return &sm.GetSecretValueOutput{SecretString: aws.String("SecretValue")}, nil
-					},
-				}
+			stub: &AWSClientStub{
+				GetSecretValueFunc: func(ctx context.Context, input *sm.GetSecretValueInput,
+					opts ...func(*sm.Options)) (*sm.GetSecretValueOutput, error) {
+					return &sm.GetSecretValueOutput{SecretString: aws.String("SecretValue")}, nil
+				},
 			},
-			request: GetRequest{"root-domain/domain/userID"},
+			request: api.GetSecretRequest{SecretID: "root-domain/domain/userID"},
 			want:    "SecretValue",
 			wantErr: false,
 		},
 		{
 			name: "GetNonExistingSecret",
-			stub: func() *AWSClientStub {
-				return &AWSClientStub{
-					GetSecretValueFunc: func(
-						ctx context.Context,
-						input *sm.GetSecretValueInput,
-						opts ...func(*sm.Options)) (*sm.GetSecretValueOutput, error) {
-						return nil, &types.ResourceNotFoundException{}
-					},
-				}
+			stub: &AWSClientStub{
+				GetSecretValueFunc: func(
+					ctx context.Context,
+					input *sm.GetSecretValueInput,
+					opts ...func(*sm.Options)) (*sm.GetSecretValueOutput, error) {
+					return nil, &types.ResourceNotFoundException{}
+				},
 			},
-			request: GetRequest{"root-domain/domain/userID"},
+			request: api.GetSecretRequest{SecretID: "root-domain/domain/userID"},
 			want:    "",
 			wantErr: true,
 		},
@@ -83,9 +78,9 @@ func TestAWSManager_GetSecret(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			manager := AWSManager{client: tt.stub()}
+			gtr := AWSGetter{Client: tt.stub}
 
-			res, err := manager.GetSecret(&tt.request)
+			res, err := gtr.GetSecret(&tt.request)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetSecret() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -99,47 +94,43 @@ func TestAWSManager_GetSecret(t *testing.T) {
 func TestAWSManager_PutSecret(t *testing.T) {
 	tests := []struct {
 		name    string
-		stub    func() *AWSClientStub
-		request PutRequest
+		stub    *AWSClientStub
+		request api.PutSecretRequest
 		wantErr bool
 	}{
 		{
 			name: "PutSecretSuccess",
-			stub: func() *AWSClientStub {
-				return &AWSClientStub{
-					PutSecretValueFunc: func(
-						ctx context.Context,
-						input *sm.PutSecretValueInput,
-						opts ...func(*sm.Options)) (*sm.PutSecretValueOutput, error) {
-						return &sm.PutSecretValueOutput{}, nil
-					},
-				}
+			stub: &AWSClientStub{
+				PutSecretValueFunc: func(
+					ctx context.Context,
+					input *sm.PutSecretValueInput,
+					opts ...func(*sm.Options)) (*sm.PutSecretValueOutput, error) {
+					return &sm.PutSecretValueOutput{}, nil
+				},
 			},
-			request: PutRequest{SecretID: "root-domain/domain/userID", Token: "Token"},
+			request: api.PutSecretRequest{SecretID: "root-domain/domain/userID", Token: "Token"},
 			wantErr: false,
 		},
 		{
 			name: "PutSecretFailure",
-			stub: func() *AWSClientStub {
-				return &AWSClientStub{
-					PutSecretValueFunc: func(
-						ctx context.Context,
-						input *sm.PutSecretValueInput,
-						opts ...func(*sm.Options)) (*sm.PutSecretValueOutput, error) {
-						return nil, &types.ResourceNotFoundException{}
-					},
-				}
+			stub: &AWSClientStub{
+				PutSecretValueFunc: func(
+					ctx context.Context,
+					input *sm.PutSecretValueInput,
+					opts ...func(*sm.Options)) (*sm.PutSecretValueOutput, error) {
+					return nil, &types.ResourceNotFoundException{}
+				},
 			},
-			request: PutRequest{SecretID: "root-domain/domain/userID", Token: "Token"},
+			request: api.PutSecretRequest{SecretID: "root-domain/domain/userID", Token: "Token"},
 			wantErr: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			manager := AWSManager{client: tt.stub()}
+			ptr := AWSPutter{Client: tt.stub}
 
-			err := manager.PutSecret(&tt.request)
+			err := ptr.PutSecret(&tt.request)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("PutSecret() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -150,47 +141,43 @@ func TestAWSManager_PutSecret(t *testing.T) {
 func TestAWSManager_CreateSecret(t *testing.T) {
 	tests := []struct {
 		name    string
-		stub    func() *AWSClientStub
-		request PutRequest
+		stub    *AWSClientStub
+		request api.CreateSecretRequest
 		wantErr bool
 	}{
 		{
 			name: "CreateSecretSuccess",
-			stub: func() *AWSClientStub {
-				return &AWSClientStub{
-					CreateSecretFunc: func(
-						ctx context.Context,
-						input *sm.CreateSecretInput,
-						opts ...func(*sm.Options)) (*sm.CreateSecretOutput, error) {
-						return &sm.CreateSecretOutput{}, nil
-					},
-				}
+			stub: &AWSClientStub{
+				CreateSecretFunc: func(
+					ctx context.Context,
+					input *sm.CreateSecretInput,
+					opts ...func(*sm.Options)) (*sm.CreateSecretOutput, error) {
+					return &sm.CreateSecretOutput{}, nil
+				},
 			},
-			request: PutRequest{SecretID: "root-domain/domain/userID", Token: "token"},
+			request: api.CreateSecretRequest{SecretID: "root-domain/domain/userID", Token: "token"},
 			wantErr: false,
 		},
 		{
 			name: "CreateSecretFailure",
-			stub: func() *AWSClientStub {
-				return &AWSClientStub{
-					CreateSecretFunc: func(
-						ctx context.Context,
-						input *sm.CreateSecretInput,
-						opts ...func(*sm.Options)) (*sm.CreateSecretOutput, error) {
-						return nil, &types.LimitExceededException{}
-					},
-				}
+			stub: &AWSClientStub{
+				CreateSecretFunc: func(
+					ctx context.Context,
+					input *sm.CreateSecretInput,
+					opts ...func(*sm.Options)) (*sm.CreateSecretOutput, error) {
+					return nil, &types.LimitExceededException{}
+				},
 			},
-			request: PutRequest{SecretID: "root-domain/domain/userID", Token: "token"},
+			request: api.CreateSecretRequest{SecretID: "root-domain/domain/userID", Token: "token"},
 			wantErr: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			manager := AWSManager{client: tt.stub()}
+			ctr := AWSCreator{Client: tt.stub}
 
-			err := manager.CreateSecret(&tt.request)
+			err := ctr.CreateSecret(&tt.request)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("CreateSecret() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -201,40 +188,44 @@ func TestAWSManager_CreateSecret(t *testing.T) {
 func TestAWSManager_ResolveID(t *testing.T) {
 	tests := []struct {
 		name    string
-		stub    func() *AWSClientStub
-		request ResolveIDRequest
+		stub    *AWSClientStub
+		request api.ResolveSecretRequest
 		want    string
 		wantErr bool
 	}{
 		{
 			name: "ResolveExistingSecretID",
-			stub: func() *AWSClientStub {
-				return &AWSClientStub{
-					DescribeSecretFunc: func(
-						ctx context.Context,
-						input *sm.DescribeSecretInput,
-						opts ...func(*sm.Options)) (*sm.DescribeSecretOutput, error) {
-						return &sm.DescribeSecretOutput{}, nil
-					},
-				}
+			stub: &AWSClientStub{
+				DescribeSecretFunc: func(
+					ctx context.Context,
+					input *sm.DescribeSecretInput,
+					opts ...func(*sm.Options)) (*sm.DescribeSecretOutput, error) {
+					return &sm.DescribeSecretOutput{}, nil
+				},
 			},
-			request: ResolveIDRequest{Domain: "domain", UserID: "userID"},
+			request: api.ResolveSecretRequest{
+				RootDomain: "root-domain",
+				Domain:     "domain",
+				UserID:     "userID",
+			},
 			want:    "root-domain/domain/userID",
 			wantErr: false,
 		},
 		{
 			name: "ResolveNonExistingSecretID",
-			stub: func() *AWSClientStub {
-				return &AWSClientStub{
-					DescribeSecretFunc: func(
-						ctx context.Context,
-						input *sm.DescribeSecretInput,
-						opts ...func(*sm.Options)) (*sm.DescribeSecretOutput, error) {
-						return nil, &types.ResourceNotFoundException{}
-					},
-				}
+			stub: &AWSClientStub{
+				DescribeSecretFunc: func(
+					ctx context.Context,
+					input *sm.DescribeSecretInput,
+					opts ...func(*sm.Options)) (*sm.DescribeSecretOutput, error) {
+					return nil, &types.ResourceNotFoundException{}
+				},
 			},
-			request: ResolveIDRequest{Domain: "domain", UserID: "userID"},
+			request: api.ResolveSecretRequest{
+				RootDomain: "root-domain",
+				Domain:     "domain",
+				UserID:     "userID",
+			},
 			want:    "root-domain/domain/userID",
 			wantErr: true,
 		},
@@ -242,9 +233,9 @@ func TestAWSManager_ResolveID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			manager := AWSManager{client: tt.stub(), rootDomain: "root-domain"}
+			rsr := AWSResolver{Client: tt.stub}
 
-			res, err := manager.ResolveSecretID(&tt.request)
+			res, err := rsr.ResolveSecretID(&tt.request)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ResolveSecretID() error = %v, wantErr %v", err, tt.wantErr)
 			}

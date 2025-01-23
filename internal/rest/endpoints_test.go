@@ -1,7 +1,7 @@
 package rest
 
 import (
-	"app/internal/token"
+	"app/api"
 	"bytes"
 	"encoding/json"
 	"errors"
@@ -15,29 +15,29 @@ import (
 )
 
 type SaverRetrieverStub struct {
-	RetrieveTokenFunc func(*token.RetrieveRequest) (*oauth2.Token, error)
-	SaveTokenFunc     func(*token.SaveRequest) error
+	RetrieveTokenFunc func(*api.RetrieveTokenRequest) (*oauth2.Token, error)
+	SaveTokenFunc     func(*api.SaveTokenRequest) error
 }
 
-func (s *SaverRetrieverStub) RetrieveToken(req *token.RetrieveRequest) (*oauth2.Token, error) {
+func (s *SaverRetrieverStub) RetrieveToken(req *api.RetrieveTokenRequest) (*oauth2.Token, error) {
 	return s.RetrieveTokenFunc(req)
 }
 
-func (s *SaverRetrieverStub) SaveToken(req *token.SaveRequest) error {
+func (s *SaverRetrieverStub) SaveToken(req *api.SaveTokenRequest) error {
 	return s.SaveTokenFunc(req)
 }
 
 func TestRetrieveTokenHandler(t *testing.T) {
 	tests := []struct {
 		name          string
-		retrieverStub func(*token.RetrieveRequest) (*oauth2.Token, error)
+		retrieverStub func(*api.RetrieveTokenRequest) (*oauth2.Token, error)
 		requestBody   string
 		wantStatus    int
 		wantBody      map[string]interface{}
 	}{
 		{
 			name: "RetrieveTokenSuccess",
-			retrieverStub: func(req *token.RetrieveRequest) (*oauth2.Token, error) {
+			retrieverStub: func(req *api.RetrieveTokenRequest) (*oauth2.Token, error) {
 				return &oauth2.Token{
 					AccessToken:  "access_token",
 					RefreshToken: "refresh_token",
@@ -58,7 +58,7 @@ func TestRetrieveTokenHandler(t *testing.T) {
 		},
 		{
 			name: "RetrieveTokenRetrieverError",
-			retrieverStub: func(req *token.RetrieveRequest) (*oauth2.Token, error) {
+			retrieverStub: func(req *api.RetrieveTokenRequest) (*oauth2.Token, error) {
 				return nil, errors.New("server error")
 			},
 			requestBody: `{"user_id": "userID"}`,
@@ -93,14 +93,14 @@ func TestRetrieveTokenHandler(t *testing.T) {
 func TestSaveTokenHandler(t *testing.T) {
 	tests := []struct {
 		name        string
-		saverStub   func(*token.SaveRequest) error
+		saverStub   func(*api.SaveTokenRequest) error
 		requestBody string
 		wantStatus  int
 		wantBody    map[string]interface{}
 	}{
 		{
 			name: "SaveTokenSuccessful",
-			saverStub: func(req *token.SaveRequest) error {
+			saverStub: func(req *api.SaveTokenRequest) error {
 				return nil
 			},
 			requestBody: fmt.Sprintf(`{
@@ -119,7 +119,7 @@ func TestSaveTokenHandler(t *testing.T) {
 		},
 		{
 			name: "SaveTokenSaverError",
-			saverStub: func(req *token.SaveRequest) error {
+			saverStub: func(req *api.SaveTokenRequest) error {
 				return errors.New("server error")
 			},
 			requestBody: fmt.Sprintf(`{

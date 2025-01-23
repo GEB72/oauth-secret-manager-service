@@ -56,7 +56,7 @@ func TestAWSManager_GetPublicKey(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			manager := AWSManager{client: tt.stub()}
+			manager := AwsGetter{Client: tt.stub()}
 
 			res, err := manager.GetPublicKey()
 			if (err != nil) != tt.wantErr {

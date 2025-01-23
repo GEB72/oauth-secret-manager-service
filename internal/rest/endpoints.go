@@ -1,6 +1,7 @@
 package rest
 
 import (
+	"app/api"
 	"app/internal/token"
 	"github.com/gin-gonic/gin"
 	"log/slog"
@@ -18,22 +19,22 @@ func RetrieveTokenHandler(r token.Retriever) gin.HandlerFunc {
 	errorBody := gin.H{"Error": "Could not retrieve token"}
 
 	return func(c *gin.Context) {
-		var req token.RetrieveRequest
+		var req api.RetrieveTokenRequest
 		if err := c.ShouldBindBodyWithJSON(&req); err != nil {
 			c.JSON(http.StatusBadRequest, errorBody)
 			return
 		}
 
-		token, err := r.RetrieveToken(&token.RetrieveRequest{UserID: req.UserID})
-		if err != nil || token == nil || token.AccessToken == "" {
+		tk, err := r.RetrieveToken(&api.RetrieveTokenRequest{UserID: req.UserID})
+		if err != nil || tk == nil || tk.AccessToken == "" {
 			c.JSON(http.StatusInternalServerError, errorBody)
 			return
 		}
 
 		c.JSON(http.StatusOK, gin.H{
-			"access_token":  token.AccessToken,
-			"refresh_token": token.RefreshToken,
-			"expiry":        token.Expiry.String()})
+			"access_token":  tk.AccessToken,
+			"refresh_token": tk.RefreshToken,
+			"expiry":        tk.Expiry.String()})
 	}
 }
 
@@ -45,14 +46,14 @@ func SaveTokenHandler(s token.Saver) gin.HandlerFunc {
 	errorBody := gin.H{"Error": "Could not save token"}
 
 	return func(c *gin.Context) {
-		var req token.SaveRequest
+		var req api.SaveTokenRequest
 		if err := c.ShouldBindBodyWithJSON(&req); err != nil {
 			slog.Error(err.Error())
 			c.JSON(http.StatusBadRequest, errorBody)
 			return
 		}
 
-		err := s.SaveToken(&token.SaveRequest{
+		err := s.SaveToken(&api.SaveTokenRequest{
 			UserID:       req.UserID,
 			AccessToken:  req.AccessToken,
 			RefreshToken: req.RefreshToken,

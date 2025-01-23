@@ -1,56 +1,56 @@
 package token
 
 import (
-	"app/internal/aws/secret"
+	"app/api"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager/types"
 	"golang.org/x/oauth2"
 	"testing"
 )
 
-type SecretManagerStub struct {
-	ResolveSecretIDFunc func(request *secret.ResolveIDRequest) (string, error)
-	GetSecretFunc       func(request *secret.GetRequest) (string, error)
-	PutSecretFunc       func(request *secret.PutRequest) error
-	CreateSecretFunc    func(request *secret.PutRequest) error
+type SecretFuncStub struct {
+	ResolveSecretIDFunc func(request *api.ResolveSecretRequest) (string, error)
+	GetSecretFunc       func(request *api.GetSecretRequest) (string, error)
+	PutSecretFunc       func(request *api.PutSecretRequest) error
+	CreateSecretFunc    func(request *api.CreateSecretRequest) error
 }
 
-func (s *SecretManagerStub) ResolveSecretID(request *secret.ResolveIDRequest) (string, error) {
+func (s *SecretFuncStub) ResolveSecretID(request *api.ResolveSecretRequest) (string, error) {
 	return s.ResolveSecretIDFunc(request)
 }
 
-func (s *SecretManagerStub) GetSecret(request *secret.GetRequest) (string, error) {
+func (s *SecretFuncStub) GetSecret(request *api.GetSecretRequest) (string, error) {
 	return s.GetSecretFunc(request)
 }
 
-func (s *SecretManagerStub) PutSecret(request *secret.PutRequest) error {
+func (s *SecretFuncStub) PutSecret(request *api.PutSecretRequest) error {
 	return s.PutSecretFunc(request)
 }
 
-func (s *SecretManagerStub) CreateSecret(request *secret.PutRequest) error {
+func (s *SecretFuncStub) CreateSecret(request *api.CreateSecretRequest) error {
 	return s.CreateSecretFunc(request)
 }
 
 func TestOAuthManager_Retrieve(t *testing.T) {
 	tests := []struct {
 		name    string
-		stub    *SecretManagerStub
-		request RetrieveRequest
+		stub    *SecretFuncStub
+		request api.RetrieveTokenRequest
 		want    *oauth2.Token
 		wantErr bool
 	}{
 		{
 			name: "RetrieveTokenSuccess",
-			stub: &SecretManagerStub{
-				ResolveSecretIDFunc: func(request *secret.ResolveIDRequest) (string, error) {
+			stub: &SecretFuncStub{
+				ResolveSecretIDFunc: func(request *api.ResolveSecretRequest) (string, error) {
 					return "secretID", nil
 				},
-				GetSecretFunc: func(request *secret.GetRequest) (string, error) {
+				GetSecretFunc: func(request *api.GetSecretRequest) (string, error) {
 					return `{"access_token":  "access_token", 
 							 "token_type":    "Bearer",
 							 "refresh_token": "refresh_token"}`, nil
 				},
 			},
-			request: RetrieveRequest{UserID: "userID"},
+			request: api.RetrieveTokenRequest{UserID: "userID"},
 			want: &oauth2.Token{
 				AccessToken:  "access_token",
 				RefreshToken: "refresh_token",
@@ -59,40 +59,40 @@ func TestOAuthManager_Retrieve(t *testing.T) {
 		},
 		{
 			name: "RetrieveTokenNonExistingSecret",
-			stub: &SecretManagerStub{
-				ResolveSecretIDFunc: func(request *secret.ResolveIDRequest) (string, error) {
+			stub: &SecretFuncStub{
+				ResolveSecretIDFunc: func(request *api.ResolveSecretRequest) (string, error) {
 					return "", &types.ResourceNotFoundException{}
 				},
 			},
-			request: RetrieveRequest{UserID: "userID"},
+			request: api.RetrieveTokenRequest{UserID: "userID"},
 			want:    nil,
 			wantErr: true,
 		},
 		{
 			name: "RetrieveTokenGetSecretError",
-			stub: &SecretManagerStub{
-				ResolveSecretIDFunc: func(request *secret.ResolveIDRequest) (string, error) {
+			stub: &SecretFuncStub{
+				ResolveSecretIDFunc: func(request *api.ResolveSecretRequest) (string, error) {
 					return "secretID", nil
 				},
-				GetSecretFunc: func(request *secret.GetRequest) (string, error) {
+				GetSecretFunc: func(request *api.GetSecretRequest) (string, error) {
 					return "", &types.InvalidRequestException{}
 				},
 			},
-			request: RetrieveRequest{UserID: "userID"},
+			request: api.RetrieveTokenRequest{UserID: "userID"},
 			want:    nil,
 			wantErr: true,
 		},
 		{
 			name: "RetrieveTokenUnmarshalError",
-			stub: &SecretManagerStub{
-				ResolveSecretIDFunc: func(request *secret.ResolveIDRequest) (string, error) {
+			stub: &SecretFuncStub{
+				ResolveSecretIDFunc: func(request *api.ResolveSecretRequest) (string, error) {
 					return "secretID", nil
 				},
-				GetSecretFunc: func(request *secret.GetRequest) (string, error) {
+				GetSecretFunc: func(request *api.GetSecretRequest) (string, error) {
 					return "invalid JSON", nil
 				},
 			},
-			request: RetrieveRequest{UserID: "userID"},
+			request: api.RetrieveTokenRequest{UserID: "userID"},
 			want:    nil,
 			wantErr: true,
 		},
@@ -100,9 +100,9 @@ func TestOAuthManager_Retrieve(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			manager := NewOAuthManager(tt.stub)
+			retr := ApiRetriever{tt.stub, tt.stub}
 
-			res, err := manager.RetrieveToken(&tt.request)
+			res, err := retr.RetrieveToken(&tt.request)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Retrieve() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -117,21 +117,21 @@ func TestOAuthManager_Retrieve(t *testing.T) {
 func TestOAuthManager_Save(t *testing.T) {
 	tests := []struct {
 		name    string
-		stub    *SecretManagerStub
-		request SaveRequest
+		stub    *SecretFuncStub
+		request api.SaveTokenRequest
 		wantErr bool
 	}{
 		{
 			name: "SaveTokenExistingSecret",
-			stub: &SecretManagerStub{
-				ResolveSecretIDFunc: func(request *secret.ResolveIDRequest) (string, error) {
+			stub: &SecretFuncStub{
+				ResolveSecretIDFunc: func(request *api.ResolveSecretRequest) (string, error) {
 					return "secretID", nil
 				},
-				PutSecretFunc: func(request *secret.PutRequest) error {
+				PutSecretFunc: func(request *api.PutSecretRequest) error {
 					return nil
 				},
 			},
-			request: SaveRequest{
+			request: api.SaveTokenRequest{
 				UserID:       "userID",
 				AccessToken:  "access_token",
 				RefreshToken: "refresh_token",
@@ -140,15 +140,15 @@ func TestOAuthManager_Save(t *testing.T) {
 		},
 		{
 			name: "SaveTokenCreateNewSecret",
-			stub: &SecretManagerStub{
-				ResolveSecretIDFunc: func(request *secret.ResolveIDRequest) (string, error) {
+			stub: &SecretFuncStub{
+				ResolveSecretIDFunc: func(request *api.ResolveSecretRequest) (string, error) {
 					return "", &types.ResourceNotFoundException{}
 				},
-				CreateSecretFunc: func(request *secret.PutRequest) error {
+				CreateSecretFunc: func(request *api.CreateSecretRequest) error {
 					return nil
 				},
 			},
-			request: SaveRequest{
+			request: api.SaveTokenRequest{
 				UserID:       "userID",
 				AccessToken:  "access_token",
 				RefreshToken: "refresh_token",
@@ -157,12 +157,12 @@ func TestOAuthManager_Save(t *testing.T) {
 		},
 		{
 			name: "SaveTokenResolveSecretIDError",
-			stub: &SecretManagerStub{
-				ResolveSecretIDFunc: func(request *secret.ResolveIDRequest) (string, error) {
+			stub: &SecretFuncStub{
+				ResolveSecretIDFunc: func(request *api.ResolveSecretRequest) (string, error) {
 					return "", &types.InvalidRequestException{}
 				},
 			},
-			request: SaveRequest{
+			request: api.SaveTokenRequest{
 				UserID:       "userID",
 				AccessToken:  "access_token",
 				RefreshToken: "refresh_token",
@@ -171,15 +171,15 @@ func TestOAuthManager_Save(t *testing.T) {
 		},
 		{
 			name: "SaveTokenCreateNewSecretError",
-			stub: &SecretManagerStub{
-				ResolveSecretIDFunc: func(request *secret.ResolveIDRequest) (string, error) {
+			stub: &SecretFuncStub{
+				ResolveSecretIDFunc: func(request *api.ResolveSecretRequest) (string, error) {
 					return "", &types.ResourceNotFoundException{}
 				},
-				CreateSecretFunc: func(request *secret.PutRequest) error {
+				CreateSecretFunc: func(request *api.CreateSecretRequest) error {
 					return &types.InvalidRequestException{}
 				},
 			},
-			request: SaveRequest{
+			request: api.SaveTokenRequest{
 				UserID:       "userID",
 				AccessToken:  "access_token",
 				RefreshToken: "refresh_token",
@@ -188,15 +188,15 @@ func TestOAuthManager_Save(t *testing.T) {
 		},
 		{
 			name: "SaveTokenPutSecretError",
-			stub: &SecretManagerStub{
-				ResolveSecretIDFunc: func(request *secret.ResolveIDRequest) (string, error) {
+			stub: &SecretFuncStub{
+				ResolveSecretIDFunc: func(request *api.ResolveSecretRequest) (string, error) {
 					return "secretID", nil
 				},
-				PutSecretFunc: func(request *secret.PutRequest) error {
+				PutSecretFunc: func(request *api.PutSecretRequest) error {
 					return &types.InvalidRequestException{}
 				},
 			},
-			request: SaveRequest{
+			request: api.SaveTokenRequest{
 				UserID:       "userID",
 				AccessToken:  "access_token",
 				RefreshToken: "refresh_token",
@@ -207,9 +207,9 @@ func TestOAuthManager_Save(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			manager := NewOAuthManager(tt.stub)
+			svr := ApiSaver{tt.stub, tt.stub, tt.stub}
 
-			err := manager.SaveToken(&tt.request)
+			err := svr.SaveToken(&tt.request)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Save() error = %v, wantErr %v", err, tt.wantErr)
 			}
