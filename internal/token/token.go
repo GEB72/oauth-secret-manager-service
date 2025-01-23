@@ -2,6 +2,7 @@ package token
 
 import (
 	"app/api"
+	"app/env"
 	"app/internal/secret"
 	"encoding/json"
 	"fmt"
@@ -22,6 +23,7 @@ type (
 	// It contains secret.IDResolver and secret.Getter interfaces as dependencies
 	// to retrieve secrets for the tokens.
 	ApiRetriever struct {
+		Env env.AwsVars
 		Res secret.IDResolver
 		Get secret.Getter
 	}
@@ -38,8 +40,9 @@ type (
 
 func (rt *ApiRetriever) RetrieveToken(r *api.RetrieveTokenRequest) (*oauth2.Token, error) {
 	secretID, err := rt.Res.ResolveSecretID(&api.ResolveSecretRequest{
-		Domain: "token",
-		UserID: r.UserID})
+		RootDomain: rt.Env.SmsRootDomain,
+		Domain:     "token",
+		UserID:     r.UserID})
 	if err != nil {
 		slog.Error(fmt.Sprintf("Could not retrieve token. Resolving SecretID failed: %v", err))
 		return nil, err

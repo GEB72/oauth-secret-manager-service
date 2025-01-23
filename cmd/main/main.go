@@ -49,6 +49,7 @@ func main() {
 	}
 
 	rtr := token.ApiRetriever{
+		Env: vars,
 		Res: &mgr.AWSResolver,
 		Get: &mgr,
 	}

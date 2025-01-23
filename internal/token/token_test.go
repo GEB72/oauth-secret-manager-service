@@ -2,8 +2,10 @@ package token
 
 import (
 	"app/api"
+	"app/env"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager/types"
 	"golang.org/x/oauth2"
+	"log/slog"
 	"testing"
 )
 
@@ -100,7 +102,12 @@ func TestOAuthManager_Retrieve(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			retr := ApiRetriever{tt.stub, tt.stub}
+			vars, err := env.GetAwsVars()
+			if err != nil {
+				slog.Error("Server not started, could not get env vars", "error", err.Error())
+				return
+			}
+			retr := ApiRetriever{Env: vars, Res: tt.stub, Get: tt.stub}
 
 			res, err := retr.RetrieveToken(&tt.request)
 			if (err != nil) != tt.wantErr {
