@@ -19,13 +19,14 @@ func RetrieveTokenHandler(r token.Retriever) gin.HandlerFunc {
 	errorBody := gin.H{"Error": "Could not retrieve token"}
 
 	return func(c *gin.Context) {
-		var req api.RetrieveTokenRequest
-		if err := c.ShouldBindBodyWithJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, errorBody)
+		// You know the middleware has already run, so userID must exist if authorized.
+		userID, ok := c.Get("user_id")
+		if !ok || userID == "" {
+			c.JSON(http.StatusUnauthorized, errorBody)
 			return
 		}
 
-		tk, err := r.RetrieveToken(&api.RetrieveTokenRequest{UserID: req.UserID})
+		tk, err := r.RetrieveToken(&api.RetrieveTokenRequest{UserID: userID.(string)})
 		if err != nil || tk == nil || tk.AccessToken == "" {
 			c.JSON(http.StatusInternalServerError, errorBody)
 			return

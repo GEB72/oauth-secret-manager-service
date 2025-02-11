@@ -2,6 +2,8 @@ package env
 
 import (
 	"fmt"
+	"github.com/joho/godotenv"
+	"log/slog"
 	"os"
 )
 
@@ -11,6 +13,11 @@ type AwsVars struct {
 }
 
 func GetAwsVars() (AwsVars, error) {
+	err := godotenv.Load()
+	if err != nil {
+		slog.Info("No env file found, using os environment variables")
+	}
+
 	rootDomain := os.Getenv("SMS_ROOT_DOMAIN")
 	if rootDomain == "" {
 		return AwsVars{}, fmt.Errorf("SMS_ROOT_DOMAIN environment variable not set")

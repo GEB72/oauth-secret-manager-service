@@ -51,7 +51,7 @@ export REGION=your-aws-region
 * **`REGION`**: AWS region where the service will operate.
 * **`SMS_ROOT_DOMAIN`**: This variable defines the root domain for the secrets. It forms part of the secret ID, allowing secrets to be logically grouped and resolved.
 
-Consider using a `.env` file to manage environment variables securely. **Do not commit this file to version control.**
+Consider using a `aws.env` file to manage environment variables securely. **Do not commit this file to version control.** It is present in .gitignore by default.
 
 ## Usage
 
@@ -122,12 +122,7 @@ The service utilizes **JSON Web Tokens (JWT)** and **JSON Web Key (JWK)** for se
     - Method: **GET**
     - Headers:
         - `Authorization`: Bearer token containing the JWT.
-    - Body (JSON):
-      ```json
-      {
-        "user_id": "1"
-      }
-      ```
+    - Empty Body
 
 - **For `/token/save` Endpoint**:
     - Method: **PUT**

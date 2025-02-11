@@ -22,12 +22,11 @@ func (p *ParserStub) ParseJWT(value string) (*jwt.Token, error) {
 
 func TestAuthenticate(t *testing.T) {
 	tests := []struct {
-		name        string
-		stub        *ParserStub
-		authHeader  string
-		requestBody string
-		wantStatus  int
-		wantBody    gin.H
+		name       string
+		stub       *ParserStub
+		authHeader string
+		wantStatus int
+		wantBody   gin.H
 	}{
 		{
 			name: "AuthenticateSuccess",
@@ -36,30 +35,26 @@ func TestAuthenticate(t *testing.T) {
 					return &jwt.Token{Valid: true, Claims: jwt.MapClaims{"sub": "userID"}}, nil
 				},
 			},
-			authHeader:  "Bearer valid-token",
-			requestBody: `{"user_id": "userID"}`,
-			wantStatus:  http.StatusOK,
+			authHeader: "Bearer valid-token",
+			wantStatus: http.StatusOK,
 		},
 		{
-			name:        "AuthenticateInvalidRequestBody",
-			authHeader:  "",
-			requestBody: "{}",
-			wantStatus:  http.StatusBadRequest,
-			wantBody:    gin.H{"Error": "Could not authenticate user"},
+			name:       "AuthenticateInvalidRequestBody",
+			authHeader: "",
+			wantStatus: http.StatusBadRequest,
+			wantBody:   gin.H{"Error": "Could not authenticate user"},
 		},
 		{
-			name:        "AuthenticateEmptyAuthorizationHeader",
-			authHeader:  "",
-			requestBody: `{"user_id": "userID"}`,
-			wantStatus:  http.StatusBadRequest,
-			wantBody:    gin.H{"Error": "Could not authenticate user"},
+			name:       "AuthenticateEmptyAuthorizationHeader",
+			authHeader: "",
+			wantStatus: http.StatusBadRequest,
+			wantBody:   gin.H{"Error": "Could not authenticate user"},
 		},
 		{
-			name:        "AuthenticateInvalidAuthorizationHeader",
-			authHeader:  "InvalidFormat",
-			requestBody: `{"user_id": "userID"}`,
-			wantStatus:  http.StatusBadRequest,
-			wantBody:    gin.H{"Error": "Could not authenticate user"},
+			name:       "AuthenticateInvalidAuthorizationHeader",
+			authHeader: "InvalidFormat",
+			wantStatus: http.StatusBadRequest,
+			wantBody:   gin.H{"Error": "Could not authenticate user"},
 		},
 		{
 			name: "AuthenticateInvalidToken",
@@ -68,10 +63,9 @@ func TestAuthenticate(t *testing.T) {
 					return &jwt.Token{Valid: false, Claims: jwt.MapClaims{"sub": "userID"}}, nil
 				},
 			},
-			authHeader:  "Bearer valid-token",
-			requestBody: `{"user_id": "userID"}`,
-			wantStatus:  http.StatusUnauthorized,
-			wantBody:    gin.H{"Error": "Could not authenticate user"},
+			authHeader: "Bearer valid-token",
+			wantStatus: http.StatusUnauthorized,
+			wantBody:   gin.H{"Error": "Could not authenticate user"},
 		},
 		{
 			name: "AuthenticateInvalidClaimsType",
@@ -80,22 +74,20 @@ func TestAuthenticate(t *testing.T) {
 					return &jwt.Token{Valid: true}, nil
 				},
 			},
-			authHeader:  "Bearer valid-token",
-			requestBody: `{"user_id": "userID"}`,
-			wantStatus:  http.StatusUnauthorized,
-			wantBody:    gin.H{"Error": "Could not authenticate user"},
+			authHeader: "Bearer valid-token",
+			wantStatus: http.StatusUnauthorized,
+			wantBody:   gin.H{"Error": "Could not authenticate user"},
 		},
 		{
-			name: "AuthenticateUserIDMismatch",
+			name: "AuthenticateUserIDEmpty",
 			stub: &ParserStub{
 				ParserFunc: func(tokenString string) (*jwt.Token, error) {
-					return &jwt.Token{Valid: true, Claims: jwt.MapClaims{"sub": "wrongID"}}, nil
+					return &jwt.Token{Valid: true, Claims: jwt.MapClaims{"sub": ""}}, nil
 				},
 			},
-			authHeader:  "Bearer valid-token",
-			requestBody: `{"user_id": "userID"}`,
-			wantStatus:  http.StatusUnauthorized,
-			wantBody:    gin.H{"Error": "Could not authenticate user"},
+			authHeader: "Bearer valid-token",
+			wantStatus: http.StatusUnauthorized,
+			wantBody:   gin.H{"Error": "Could not authenticate user"},
 		},
 	}
 
@@ -105,7 +97,8 @@ func TestAuthenticate(t *testing.T) {
 
 			resp := httptest.NewRecorder()
 			c, _ := gin.CreateTestContext(resp)
-			c.Request = httptest.NewRequest("POST", "/test", bytes.NewBufferString(tt.requestBody))
+			c.Set("user_id", "1")
+			c.Request = httptest.NewRequest("POST", "/test", bytes.NewBufferString(""))
 			c.Request.Header.Set("Content-Type", "application/json")
 			c.Request.Header.Set("Authorization", tt.authHeader)
 
