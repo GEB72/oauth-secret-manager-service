@@ -23,15 +23,6 @@ func Authenticate(p Parser) gin.HandlerFunc {
 	errorBody := gin.H{"Error": "Could not authenticate user"}
 
 	return func(c *gin.Context) {
-		var req struct {
-			UserID string `json:"user_id" binding:"required"`
-		}
-		if err := c.ShouldBindBodyWithJSON(&req); err != nil {
-			slog.Error(err.Error())
-			c.AbortWithStatusJSON(http.StatusBadRequest, errorBody)
-			return
-		}
-
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
 			slog.Error("Authorization header is empty")
@@ -60,12 +51,13 @@ func Authenticate(p Parser) gin.HandlerFunc {
 			return
 		}
 
-		if req.UserID != claims["sub"] {
-			slog.Error("Invalid userID")
+		userID, ok := claims["sub"]
+		if !ok || userID == "" {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, errorBody)
 			return
 		}
 
+		c.Set("user_id", claims["sub"])
 		c.Next()
 	}
 }

@@ -31,7 +31,7 @@ func TestRetrieveTokenHandler(t *testing.T) {
 	tests := []struct {
 		name          string
 		retrieverStub func(*api.RetrieveTokenRequest) (*oauth2.Token, error)
-		requestBody   string
+		userID        string
 		wantStatus    int
 		wantBody      map[string]interface{}
 	}{
@@ -43,27 +43,27 @@ func TestRetrieveTokenHandler(t *testing.T) {
 					RefreshToken: "refresh_token",
 				}, nil
 			},
-			requestBody: `{"user_id": "userID"}`,
-			wantStatus:  http.StatusOK,
+			userID:     "1",
+			wantStatus: http.StatusOK,
 			wantBody: gin.H{
 				"access_token":  "access_token",
 				"refresh_token": "refresh_token",
 			},
 		},
 		{
-			name:        "RetrieveTokenInvalidRequestBody",
-			requestBody: `{"user": "userID"}`,
-			wantStatus:  http.StatusBadRequest,
-			wantBody:    gin.H{"Error": "Could not retrieve token"},
+			name:       "RetrieveTokenEmptyUserID",
+			userID:     "",
+			wantStatus: http.StatusUnauthorized,
+			wantBody:   gin.H{"Error": "Could not retrieve token"},
 		},
 		{
 			name: "RetrieveTokenRetrieverError",
 			retrieverStub: func(req *api.RetrieveTokenRequest) (*oauth2.Token, error) {
 				return nil, errors.New("server error")
 			},
-			requestBody: `{"user_id": "userID"}`,
-			wantStatus:  http.StatusInternalServerError,
-			wantBody:    gin.H{"Error": "Could not retrieve token"},
+			userID:     "1",
+			wantStatus: http.StatusInternalServerError,
+			wantBody:   gin.H{"Error": "Could not retrieve token"},
 		},
 	}
 
@@ -73,7 +73,8 @@ func TestRetrieveTokenHandler(t *testing.T) {
 
 			resp := httptest.NewRecorder()
 			c, _ := gin.CreateTestContext(resp)
-			c.Request = httptest.NewRequest("POST", "/token/get", bytes.NewBufferString(tt.requestBody))
+			c.Set("user_id", tt.userID)
+			c.Request = httptest.NewRequest("POST", "/token/get", bytes.NewBufferString(""))
 			c.Request.Header.Set("Content-Type", "application/json")
 
 			handler(c)
